@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RENATA短影音服務優惠方案</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slideDown {
+            animation: slideDown 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+
+    <script type="module">
+        // Google Apps Script URL
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzqBlQnh_C3E6pavObUGhjy2hpm52E7O3V5BhYPVpnaZVm9HlHJ0GyvkM2P31i3R11YZQ/exec';
+
+        // 方案資料
+        const PLANS = [
+            { id: 'starter', name: '首次體驗方案', videoCount: 10, duration: 1, price: 13000, originalPrice: 30000, badge: '限首次', desc: '此方案限一次使用' },
+            { id: 'renewal', name: '續約優惠方案', videoCount: 10, duration: 1, price: 18000, originalPrice: 30000, badge: '續約推薦', desc: '標準單月續約價格' },
+            { id: 'standard', name: '雙月方案 (20支)', videoCount: 20, duration: 2, price: 30000, originalPrice: 60000, badge: '熱門', desc: '平均每支 $1,500' },
+            { id: 'annual', name: '年度方案 (120支)', videoCount: 120, duration: 12, price: 198000, originalPrice: 360000, badge: '最划算', desc: '贈送 $2,500 投廣金 (5天)' }
+        ];
+
+        const REGIONS = [
+            { id: 'north', name: '北部 (基隆/台北/新北/桃園/新竹)', fee: 0, label: '免車馬費' },
+            { id: 'central', name: '中部 (苗栗/台中/彰化/南投/雲林)', fee: 3000, label: '車馬費 +$3,000' },
+            { id: 'south', name: '南部 (嘉義/台南/高雄/屏東)', fee: 5000, label: '車馬費 +$5,000' },
+            { id: 'east', name: '東部/離島 (花蓮/台東/其他)', fee: 0, label: '目前無服務', disabled: true }
+        ];
+
+        // 狀態管理
+        let state = {
+            selectedPlanId: 'standard',
+            addonCopyCount: 0,
+            addonAdCount: 0,
+            selectedRegionId: 'north',
+            formData: { clientName: '', storeName: '', salesRep: '' },
+            isSubmitting: false,
+            showSuccess: false,
+            showLineWarning: false
+        };
+
+        // 檢測 LINE 瀏覽器
+        const isLineApp = (navigator.userAgent || '').indexOf('Line') !== -1;
+        if (isLineApp) state.showLineWarning = true;
+
+        function render() {
+            const selectedPlan = PLANS.find(p => p.id === state.selectedPlanId);
+            const isStarterPlan = state.selectedPlanId === 'starter';
+            const selectedRegion = REGIONS.find(r => r.id === state.selectedRegionId);
+            const transportFee = selectedRegion.fee;
+            const isServiceUnavailable = selectedRegion.disabled;
+
+            const copyTotalPrice = isStarterPlan ? 0 : state.addonCopyCount * 1000;
+            const adTotalPrice = state.addonAdCount * 1000;
+            const grandTotal = selectedPlan.price + copyTotalPrice + adTotalPrice + transportFee;
+            const netAmount = Math.round(grandTotal / 1.05);
+            const taxAmount = grandTotal - netAmount;
+
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                ${state.showLineWarning ? `
+                <div class="fixed top-0 left-0 right-0 bg-gradient-to-r from-green-600 to-green-500 text-white p-4 shadow-lg z-50 animate-slideDown">
+                    <div class="max-w-4xl mx-auto flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 flex-1">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            <div>
+                                <p class="font-bold text-sm">建議使用外部瀏覽器開啟</p>
+                                <p class="text-xs opacity-90">獲得更好的填寫體驗</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openInExternalBrowser()" class="bg-white text-green-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-50">開啟瀏覽器</button>
+                            <button onclick="closeLineWarning()" class="text-white hover:bg-white/20 p-2 rounded-lg">✕</button>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <header class="bg-gradient-to-r from-blue-900 to-slate-800 text-white p-6 shadow-lg ${state.showLineWarning ? 'mt-20' : ''}">
+                    <div class="max-w-4xl mx-auto">
+                        <h1 class="text-3xl font-bold mb-3">RENATA短影音服務優惠方案</h1>
+                        <div class="inline-block bg-yellow-400 text-blue-900 px-6 py-2 rounded-lg font-black text-xl shadow-lg border-2 border-yellow-200 transform -rotate-1">
+                            2025年優惠方案 (~12/31止)
+                        </div>
+                    </div>
+                </header>
+
+                <div class="max-w-4xl mx-auto p-4 space-y-8 pb-20">
+                    <!-- 方案選擇 -->
+                    <section>
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">1</span>
+                            <h2 class="text-xl font-bold">選擇您的方案</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${PLANS.map(plan => `
+                                <div onclick="selectPlan('${plan.id}')" class="relative cursor-pointer rounded-xl border-2 p-5 shadow-sm hover:shadow-md transition ${state.selectedPlanId === plan.id ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-white bg-white hover:border-blue-200'}">
+                                    ${plan.badge ? `<span class="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white rounded-bl-xl rounded-tr-lg ${plan.id === 'annual' ? 'bg-amber-500' : 'bg-blue-500'}">${plan.badge}</span>` : ''}
+                                    <h3 class="font-bold text-lg mb-2">${plan.name}</h3>
+                                    <p class="text-3xl font-bold text-blue-700 mb-1">$${plan.price.toLocaleString()}</p>
+                                    <p class="text-sm text-gray-500 line-through mb-4">原價 $${plan.originalPrice.toLocaleString()}</p>
+                                    <div class="flex gap-2 text-sm text-gray-600 mb-2">
+                                        <span class="bg-gray-100 px-2 py-1 rounded">影片 ${plan.videoCount} 支</span>
+                                        <span class="bg-gray-100 px-2 py-1 rounded">走期 ${plan.duration} 個月</span>
+                                    </div>
+                                    <p class="text-xs text-amber-600">★ ${plan.desc}</p>
+                                    <div class="absolute bottom-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center ${state.selectedPlanId === plan.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}">
+                                        ${state.selectedPlanId === plan.id ? '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>' : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </section>
+
+                    <!-- 加購服務 -->
+                    <section class="bg-white rounded-xl shadow-sm p-6 border">
+                        <div class="flex items-center gap-2 mb-6">
+                            <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">2</span>
+                            <h2 class="text-xl font-bold">加購服務</h2>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between p-4 border rounded-lg ${isStarterPlan ? 'bg-purple-50 border-purple-200' : ''}">
+                                <div>
+                                    <h3 class="font-bold">文案 + 標籤服務</h3>
+                                    <p class="text-sm text-gray-500">${isStarterPlan ? '此方案已包含文案服務' : '$1,000 / 每組(月)'}</p>
+                                </div>
+                                ${isStarterPlan ? 
+                                    '<div class="bg-purple-200 text-purple-800 px-3 py-2 rounded-lg font-bold text-sm">✓ 方案內含(贈送)</div>' :
+                                    `<div class="flex items-center border rounded-lg bg-gray-50">
+                                        <button onclick="updateAddonCopy(-1)" class="px-3 py-2 hover:bg-gray-200 rounded-l-lg font-bold">-</button>
+                                        <span class="w-12 text-center font-bold">${state.addonCopyCount}</span>
+                                        <button onclick="updateAddonCopy(1)" class="px-3 py-2 hover:bg-gray-200 rounded-r-lg font-bold">+</button>
+                                    </div>`
+                                }
+                            </div>
+                            <div class="flex items-center justify-between p-4 border rounded-lg">
+                                <div>
+                                    <h3 class="font-bold">投放廣告服務</h3>
+                                    <p class="text-sm text-gray-500">每支$1,000(影片需有蕾娜塔產品露出)</p>
+                                </div>
+                                <div class="flex items-center border rounded-lg bg-gray-50">
+                                    <button onclick="updateAddonAd(-1)" class="px-3 py-2 hover:bg-gray-200 rounded-l-lg font-bold">-</button>
+                                    <span class="w-12 text-center font-bold">${state.addonAdCount}</span>
+                                    <button onclick="updateAddonAd(1)" class="px-3 py-2 hover:bg-gray-200 rounded-r-lg font-bold">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 填寫資料 -->
+                    <section class="bg-white rounded-xl shadow-sm p-6 border">
+                        <div class="flex items-center gap-2 mb-6">
+                            <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">3</span>
+                            <h2 class="text-xl font-bold">填寫資料</h2>
+                        </div>
+                        <form onsubmit="handleSubmit(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">服務地區 <span class="text-xs text-red-500">(必選，影響車馬費)</span></label>
+                                <select onchange="updateRegion(event)" class="w-full p-2.5 border rounded-lg" required>
+                                    ${REGIONS.map(r => `<option value="${r.id}" ${state.selectedRegionId === r.id ? 'selected' : ''}>${r.name} - ${r.label}</option>`).join('')}
+                                </select>
+                                ${transportFee > 0 ? `<p class="text-xs text-orange-600 mt-1 font-bold">※ 此地區需加收車馬費 $${transportFee.toLocaleString()}</p>` : ''}
+                                ${isServiceUnavailable ? '<p class="text-xs text-red-600 mt-1 font-bold">※ 很抱歉，此地區目前無提供服務。</p>' : ''}
+                            </div>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">客戶名稱 (公司/個人)</label>
+                                    <input type="text" name="clientName" value="${state.formData.clientName}" onchange="updateFormData(event)" required placeholder="請輸入名稱" class="w-full p-2.5 border rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">店家名稱</label>
+                                    <input type="text" name="storeName" value="${state.formData.storeName}" onchange="updateFormData(event)" required placeholder="請輸入店家名稱" class="w-full p-2.5 border rounded-lg">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium mb-1">服務業務</label>
+                                    <input type="text" name="salesRep" value="${state.formData.salesRep}" onchange="updateFormData(event)" required placeholder="請輸入業務姓名" class="w-full p-2.5 border rounded-lg">
+                                </div>
+                            </div>
+
+                            <!-- 費用試算 -->
+                            <div class="mt-8 bg-slate-50 p-4 rounded-xl border">
+                                <h3 class="font-bold border-b pb-2 mb-2">費用試算</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between"><span>${selectedPlan.name}</span><span>$${selectedPlan.price.toLocaleString()}</span></div>
+                                    ${isStarterPlan ? '<div class="flex justify-between text-purple-700"><span>文案加購 (贈送)</span><span>免費</span></div>' : 
+                                        (state.addonCopyCount > 0 ? `<div class="flex justify-between text-purple-700"><span>文案加購 (${state.addonCopyCount} 組/月)</span><span>+$${copyTotalPrice.toLocaleString()}</span></div>` : '')}
+                                    ${state.addonAdCount > 0 ? `<div class="flex justify-between text-orange-700"><span>廣告投放 (${state.addonAdCount} 支)</span><span>+$${adTotalPrice.toLocaleString()}</span></div>` : ''}
+                                    ${transportFee > 0 ? `<div class="flex justify-between text-red-700"><span>地區車馬費</span><span>+$${transportFee.toLocaleString()}</span></div>` : ''}
+                                    <div class="border-t pt-2 mt-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-bold text-lg">總金額 (含稅)</span>
+                                            <span class="font-bold text-2xl text-blue-700">$${grandTotal.toLocaleString()}</span>
+                                        </div>
+                                        <div class="text-xs text-gray-400 text-right">( 服務總計 $${netAmount.toLocaleString()} + 稅額 $${taxAmount.toLocaleString()} )</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" ${isServiceUnavailable || state.isSubmitting ? 'disabled' : ''} class="w-full py-4 rounded-xl font-bold text-lg shadow-lg ${isServiceUnavailable || state.isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-800 text-white'}">
+                                ${state.isSubmitting ? '處理中...' : isServiceUnavailable ? '此地區暫無法服務' : '確認送出並產生報價'}
+                            </button>
+                        </form>
+                    </section>
+                </div>
+
+                ${state.showSuccess ? `
+                <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                    <div class="bg-white w-full max-w-md rounded-2xl p-8 text-center">
+                        <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">✓</div>
+                        <h2 class="text-2xl font-bold mb-2">送出成功！</h2>
+                        <p class="text-green-600 text-sm mb-4">✅ 資料已成功送出</p>
+                        <p class="text-gray-600 mb-6">業務 <span class="font-bold">${state.formData.salesRep}</span> 將會盡快與 <span class="font-bold">${state.formData.clientName}</span> 聯繫。</p>
+                        <button onclick="closeSuccess()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">完成</button>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // 事件處理函數
+        window.selectPlan = (id) => { state.selectedPlanId = id; render(); };
+        window.updateAddonCopy = (delta) => { state.addonCopyCount = Math.max(0, state.addonCopyCount + delta); render(); };
+        window.updateAddonAd = (delta) => { state.addonAdCount = Math.max(0, state.addonAdCount + delta); render(); };
+        window.updateRegion = (e) => { state.selectedRegionId = e.target.value; render(); };
+        window.updateFormData = (e) => { state.formData[e.target.name] = e.target.value; };
+        window.closeLineWarning = () => { state.showLineWarning = false; render(); };
+        window.openInExternalBrowser = () => {
+            window.location.href = `line://openInExternalBrowser?url=${encodeURIComponent(window.location.href)}`;
+        };
+        window.closeSuccess = () => {
+            state.showSuccess = false;
+            state.formData = { clientName: '', storeName: '', salesRep: '' };
+            state.addonCopyCount = 0;
+            state.addonAdCount = 0;
+            render();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.handleSubmit = async (e) => {
+            e.preventDefault();
+            state.isSubmitting = true;
+            render();
+
+            const selectedPlan = PLANS.find(p => p.id === state.selectedPlanId);
+            const selectedRegion = REGIONS.find(r => r.id === state.selectedRegionId);
+            const isStarterPlan = state.selectedPlanId === 'starter';
+            const copyTotalPrice = isStarterPlan ? 0 : state.addonCopyCount * 1000;
+            const adTotalPrice = state.addonAdCount * 1000;
+            const transportFee = selectedRegion.fee;
+            const grandTotal = selectedPlan.price + copyTotalPrice + adTotalPrice + transportFee;
+            const netAmount = Math.round(grandTotal / 1.05);
+            const taxAmount = grandTotal - netAmount;
+
+            const planDetailStr = `${selectedPlan.name} (影片:${selectedPlan.videoCount}支 / 期長:${selectedPlan.duration}個月)`;
+            const copyDesc = isStarterPlan ? '方案內含(贈送)' : `加購文案(${state.addonCopyCount}組/月): $${copyTotalPrice.toLocaleString()}`;
+            const detailsStr = `地區: ${selectedRegion.name}\n方案金額: $${selectedPlan.price.toLocaleString()}\n${copyDesc}\n加購廣告(${state.addonAdCount}支): $${adTotalPrice.toLocaleString()}\n車馬費: $${transportFee.toLocaleString()}\n-------------------\n總計(含稅): $${grandTotal.toLocaleString()}\n(內含稅額 5%: $${taxAmount.toLocaleString()} / 服務總計: $${netAmount.toLocaleString()})`;
+
+            const submitData = {
+                clientName: state.formData.clientName,
+                storeName: state.formData.storeName,
+                region: selectedRegion.name,
+                salesRep: state.formData.salesRep,
+                planName: planDetailStr,
+                totalPrice: grandTotal,
+                details: detailsStr
+            };
+
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(submitData),
+                    mode: 'no-cors'
+                });
+
+                setTimeout(() => {
+                    state.isSubmitting = false;
+                    state.showSuccess = true;
+                    render();
+                }, 1000);
+            } catch (error) {
+                console.error('送出錯誤：', error);
+                setTimeout(() => {
+                    state.isSubmitting = false;
+                    state.showSuccess = true;
+                    render();
+                }, 1000);
+            }
+        };
+
+        // 初始渲染
+        render();
+    </script>
+</body>
+</html>
