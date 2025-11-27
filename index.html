@@ -32,8 +32,8 @@
 
         const REGIONS = [
             { id: 'north', name: '北部 (基隆/台北/新北/桃園/新竹)', fee: 0, label: '免車馬費' },
-            { id: 'central', name: '中部 (苗栗/台中/彰化/南投/雲林)', fee: 3000, label: '車馬費 +$3,000' },
-            { id: 'south', name: '南部 (嘉義/台南/高雄/屏東)', fee: 5000, label: '車馬費 +$5,000' },
+            { id: 'central', name: '中部 (苗栗/台中/彰化/南投/雲林)', fee: 3000, label: '車馬費 $3,000/月' },
+            { id: 'south', name: '南部 (嘉義/台南/高雄/屏東)', fee: 5000, label: '車馬費 $5,000/月' },
             { id: 'east', name: '東部/離島 (花蓮/台東/其他)', fee: 0, label: '目前無服務', disabled: true }
         ];
 
@@ -57,7 +57,8 @@
             const selectedPlan = PLANS.find(p => p.id === state.selectedPlanId);
             const isStarterPlan = state.selectedPlanId === 'starter';
             const selectedRegion = REGIONS.find(r => r.id === state.selectedRegionId);
-            const transportFee = selectedRegion.fee;
+            // 車馬費 = 單月車馬費 × 方案期長
+            const transportFee = selectedRegion.fee * selectedPlan.duration;
             const isServiceUnavailable = selectedRegion.disabled;
 
             const copyTotalPrice = isStarterPlan ? 0 : state.addonCopyCount * 1000;
@@ -157,6 +158,54 @@
                         </div>
                     </section>
 
+                    <!-- 注意事項與服務條款 -->
+                    <section class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-sm p-6 border-2 border-amber-200">
+                        <div class="flex items-center gap-2 mb-4">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <h2 class="text-xl font-bold text-amber-900">注意事項與服務條款</h2>
+                        </div>
+
+                        <!-- 重要資訊 -->
+                        <div class="mb-4">
+                            <h4 class="font-bold text-amber-800 mb-2 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                重要資訊
+                            </h4>
+                            <ul class="list-disc pl-5 space-y-1.5 text-amber-900 text-sm leading-relaxed">
+                                <li>確認購買服務方案後，將提供一份<span class="font-bold text-red-600">正式報價單</span>。</li>
+                                <li>本價目表於 <span class="font-bold text-red-600">2025年12月31前有效</span>，執行時間於2026年開始(依預定排程進行)。</li>
+                                <li>選購2個月以上方案即可<span class="font-bold">每月分期付款(無利息)</span>，將於報價單中標示。</li>
+                                <li>此服務費用均統一開設<span class="font-bold text-red-600">二聯式發票</span>，如需要三聯式發票請主動告知。</li>
+                            </ul>
+                        </div>
+
+                        <!-- 兩欄式條款 -->
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- 預付訂金與違約金 -->
+                            <div class="bg-white/60 rounded-lg p-4">
+                                <h4 class="font-bold text-amber-800 mb-2">預付訂金與違約金：</h4>
+                                <ul class="list-disc pl-5 space-y-1.5 text-amber-900 text-sm leading-relaxed">
+                                    <li>選購2個月以上方案，需支付<span class="font-bold text-red-600">訂金20%</span>。</li>
+                                    <li>若選購6個月以上方案，並於簽約後執行期間終止合作，需支付<span class="font-bold text-red-600">違約金30%</span>。</li>
+                                </ul>
+                            </div>
+
+                            <!-- 排程與出片資訊 -->
+                            <div class="bg-white/60 rounded-lg p-4">
+                                <h4 class="font-bold text-amber-800 mb-2">排程與出片資訊：</h4>
+                                <ul class="list-disc pl-5 space-y-1.5 text-amber-900 text-sm leading-relaxed">
+                                    <li>續約 6個月含以上方案，將先預定排程每月拍攝行程。</li>
+                                    <li>拍攝日：<span class="font-bold">依雙方約定為主</span></li>
+                                    <li>出片日：一般以拍攝日後30個工作天內 (不含例假日及國定例假日) 陸續提供。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- 填寫資料 -->
                     <section class="bg-white rounded-xl shadow-sm p-6 border">
                         <div class="flex items-center gap-2 mb-6">
@@ -169,7 +218,7 @@
                                 <select onchange="updateRegion(event)" class="w-full p-2.5 border rounded-lg" required>
                                     ${REGIONS.map(r => `<option value="${r.id}" ${state.selectedRegionId === r.id ? 'selected' : ''}>${r.name} - ${r.label}</option>`).join('')}
                                 </select>
-                                ${transportFee > 0 ? `<p class="text-xs text-orange-600 mt-1 font-bold">※ 此地區需加收車馬費 $${transportFee.toLocaleString()}</p>` : ''}
+                                ${transportFee > 0 ? `<p class="text-xs text-orange-600 mt-1 font-bold">※ 此地區車馬費按月計算：$${selectedRegion.fee.toLocaleString()}/月 × ${selectedPlan.duration}個月 = $${transportFee.toLocaleString()}</p>` : ''}
                                 ${isServiceUnavailable ? '<p class="text-xs text-red-600 mt-1 font-bold">※ 很抱歉，此地區目前無提供服務。</p>' : ''}
                             </div>
                             <div class="grid md:grid-cols-2 gap-4">
@@ -195,7 +244,7 @@
                                     ${isStarterPlan ? '<div class="flex justify-between text-purple-700"><span>文案加購 (贈送)</span><span>免費</span></div>' : 
                                         (state.addonCopyCount > 0 ? `<div class="flex justify-between text-purple-700"><span>文案加購 (${state.addonCopyCount} 組/月)</span><span>+$${copyTotalPrice.toLocaleString()}</span></div>` : '')}
                                     ${state.addonAdCount > 0 ? `<div class="flex justify-between text-orange-700"><span>廣告投放 (${state.addonAdCount} 支)</span><span>+$${adTotalPrice.toLocaleString()}</span></div>` : ''}
-                                    ${transportFee > 0 ? `<div class="flex justify-between text-red-700"><span>地區車馬費</span><span>+$${transportFee.toLocaleString()}</span></div>` : ''}
+                                    ${transportFee > 0 ? `<div class="flex justify-between text-red-700"><span>車馬費 (${selectedPlan.duration}個月)</span><span>+$${transportFee.toLocaleString()}</span></div>` : ''}
                                     <div class="border-t pt-2 mt-2">
                                         <div class="flex justify-between items-center">
                                             <span class="font-bold text-lg">總金額 (含稅)</span>
