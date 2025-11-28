@@ -305,7 +305,8 @@
             const isStarterPlan = state.selectedPlanId === 'starter';
             const copyTotalPrice = isStarterPlan ? 0 : state.addonCopyCount * 1000;
             const adTotalPrice = state.addonAdCount * 1000;
-            const transportFee = selectedRegion.fee;
+            // 車馬費 = 單月車馬費 × 方案期長
+            const transportFee = selectedRegion.fee * selectedPlan.duration;
             const grandTotal = selectedPlan.price + copyTotalPrice + adTotalPrice + transportFee;
             const netAmount = Math.round(grandTotal / 1.05);
             const taxAmount = grandTotal - netAmount;
@@ -325,18 +326,34 @@
             };
 
             try {
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(submitData),
-                    mode: 'no-cors'
-                });
-
-                setTimeout(() => {
+                // 使用 GET 方法，透過 URL 參數傳遞資料
+                const params = new URLSearchParams(submitData);
+                const url = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
+                
+                // 使用 JSONP 方式呼叫（避免 CORS 問題）
+                const script = document.createElement('script');
+                script.src = url + '&callback=handleScriptResponse';
+                document.body.appendChild(script);
+                
+                // 設定全域回調函數
+                window.handleScriptResponse = (response) => {
+                    console.log('收到回應:', response);
                     state.isSubmitting = false;
                     state.showSuccess = true;
                     render();
-                }, 1000);
+                    delete window.handleScriptResponse;
+                    document.body.removeChild(script);
+                };
+                
+                // 設定逾時
+                setTimeout(() => {
+                    if (state.isSubmitting) {
+                        state.isSubmitting = false;
+                        state.showSuccess = true;
+                        render();
+                    }
+                }, 5000);
+                
             } catch (error) {
                 console.error('送出錯誤：', error);
                 setTimeout(() => {
