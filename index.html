@@ -27,7 +27,7 @@
             { id: 'starter', name: '首次體驗方案', videoCount: 10, duration: 1, price: 13000, originalPrice: 30000, badge: '限首次', desc: '此方案限一次使用' },
             { id: 'renewal', name: '續約優惠方案', videoCount: 10, duration: 1, price: 18000, originalPrice: 30000, badge: '續約推薦', desc: '標準單月續約價格' },
             { id: 'standard', name: '雙月方案 (20支)', videoCount: 20, duration: 2, price: 30000, originalPrice: 60000, badge: '熱門', desc: '平均每支 $1,500' },
-            { id: 'annual', name: '年度方案 (120支)', videoCount: 120, duration: 12, price: 198000, originalPrice: 360000, badge: '最划算', desc: '贈送 $2,500 投廣金 (5天)' }
+            { id: 'annual', name: '年度方案 (120支)', videoCount: 120, duration: 12, price: 168000, originalPrice: 360000, badge: '最划算', desc: '贈送 $2,500 投廣金/月 (共$30,000)' }
         ];
 
         const REGIONS = [
@@ -104,11 +104,14 @@
                             <h2 class="text-xl font-bold">選擇您的方案</h2>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${PLANS.map(plan => `
+                            ${PLANS.map(plan => {
+                                const monthlyPrice = Math.round(plan.price / plan.duration);
+                                return `
                                 <div onclick="selectPlan('${plan.id}')" class="relative cursor-pointer rounded-xl border-2 p-5 shadow-sm hover:shadow-md transition ${state.selectedPlanId === plan.id ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-white bg-white hover:border-blue-200'}">
                                     ${plan.badge ? `<span class="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white rounded-bl-xl rounded-tr-lg ${plan.id === 'annual' ? 'bg-amber-500' : 'bg-blue-500'}">${plan.badge}</span>` : ''}
                                     <h3 class="font-bold text-lg mb-2">${plan.name}</h3>
                                     <p class="text-3xl font-bold text-blue-700 mb-1">$${plan.price.toLocaleString()}</p>
+                                    ${plan.duration > 1 ? `<p class="text-sm font-semibold text-green-600 mb-1">平均每月 $${monthlyPrice.toLocaleString()}</p>` : ''}
                                     <p class="text-sm text-gray-500 line-through mb-4">原價 $${plan.originalPrice.toLocaleString()}</p>
                                     <div class="flex gap-2 text-sm text-gray-600 mb-2">
                                         <span class="bg-gray-100 px-2 py-1 rounded">影片 ${plan.videoCount} 支</span>
@@ -119,7 +122,7 @@
                                         ${state.selectedPlanId === plan.id ? '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>' : ''}
                                     </div>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     </section>
 
@@ -133,7 +136,7 @@
                             <div class="flex items-center justify-between p-4 border rounded-lg ${isStarterPlan ? 'bg-purple-50 border-purple-200' : ''}">
                                 <div>
                                     <h3 class="font-bold">文案 + 標籤服務</h3>
-                                    <p class="text-sm text-gray-500">${isStarterPlan ? '此方案已包含文案服務' : '$1,000 / 每組(月)'}</p>
+                                    <p class="text-sm text-gray-500">${isStarterPlan ? '此方案已包含文案服務' : '$1,000 / 每月10支影片'}</p>
                                 </div>
                                 ${isStarterPlan ? 
                                     '<div class="bg-purple-200 text-purple-800 px-3 py-2 rounded-lg font-bold text-sm">✓ 方案內含(贈送)</div>' :
